@@ -13,6 +13,8 @@ void USART1_INIT() {
     USART1->BRR = SystemCoreClock/9600; // set baud rate
     USART1->CR1 |= USART_CR1_UE; // USART1 enable
     USART1->CR1 |= USART_CR1_TE; // transmitter enable
+    USART1->CR1 |= USART_CR1_RE;
+
 }
 
 void USART_SEND(uint8_t byte) {
@@ -22,10 +24,24 @@ void USART_SEND(uint8_t byte) {
     USART1->DR = byte;
 }
 
+uint8_t USART_READ() {
+    //wait until receiver data register is full
+    while (!(USART1->SR & USART_SR_RXNE)); 
+    return USART1->DR;
+}
+
 int main(void) {
     USART1_INIT();
 
+    // configure PC13 (LED)
+    RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
+    GPIOC->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_MODE13);
+    GPIOC->CRH |= GPIO_CRH_MODE13_1;
+
     while (1) {
-        USART_SEND('1');
+        char data = USART_READ();
+        USART_SEND(data);
+        if (data == '1') GPIOC->BSRR = GPIO_BSRR_BS13;
+        if (data == '0') GPIOC->BRR = GPIO_BRR_BR13;
     }
 }
