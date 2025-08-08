@@ -1,6 +1,8 @@
 #include "stm32f10x.h"
 #include <stdint.h>
 
+char data;
+
 void USART1_INIT() {
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN; // usart clock enable
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN; // GPIOA clock enable
@@ -15,6 +17,8 @@ void USART1_INIT() {
     USART1->CR1 |= USART_CR1_TE; // transmitter enable
     USART1->CR1 |= USART_CR1_RE;
 
+    USART1->CR1 |= USART_CR1_RXNEIE;
+    NVIC_EnableIRQ(USART1_IRQn);
 }
 
 void USART_SEND(uint8_t byte) {
@@ -24,11 +28,21 @@ void USART_SEND(uint8_t byte) {
     USART1->DR = byte;
 }
 
+void USART1_IRQHandler(void) {
+    if (USART1->SR & USART_SR_RXNE) { // check if the "Receive Data Register Not Empty" (RXNE) flag is set
+        data = USART1->DR; // read data and reset flag
+        GPIOC->ODR ^= GPIO_ODR_ODR13; // toggle LED
+        USART_SEND(data); // send byte
+    }
+}
+
 uint8_t USART_READ() {
     //wait until receiver data register is full
     while (!(USART1->SR & USART_SR_RXNE)); 
     return USART1->DR;
 }
+
+
 
 int main(void) {
     USART1_INIT();
@@ -39,9 +53,6 @@ int main(void) {
     GPIOC->CRH |= GPIO_CRH_MODE13_1;
 
     while (1) {
-        char data = USART_READ();
-        USART_SEND(data);
-        if (data == '1') GPIOC->BSRR = GPIO_BSRR_BS13;
-        if (data == '0') GPIOC->BRR = GPIO_BRR_BR13;
+        
     }
 }
